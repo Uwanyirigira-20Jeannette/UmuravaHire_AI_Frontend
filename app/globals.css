@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600&display=swap');
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    @apply antialiased;
+    background-color: #f7f9fb;
+    color: #191c1e;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .dark body { background-color: #111318; color: #e0e3e5; }
+}
+
+@layer components {
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-lg border border-[#e6e8ea] p-5;
+  }
+  .card-dark {
+    @apply bg-[#131b2e] rounded-lg border border-[#1e2d4a] p-5;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply bg-[#0f172a] hover:bg-[#1e293b] text-white font-semibold px-4 py-2.5 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-[#f2f4f6] text-[#191c1e] font-semibold px-4 py-2.5 rounded-md text-sm border border-[#e6e8ea] transition-colors flex items-center gap-2;
+  }
+  .btn-danger {
+    @apply bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-4 py-2.5 rounded-md text-sm border border-red-200 transition-colors flex items-center gap-2;
+  }
+
+  /* ── Form elements ── */
+  .input {
+    @apply w-full border border-[#c6c6cd] rounded-md px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/15 transition bg-white text-[#191c1e] placeholder-[#76777d];
+  }
+  .label {
+    @apply block text-[11px] font-semibold text-[#45464d] uppercase tracking-[0.05em] mb-1.5;
+  }
+
+  /* ── Status badges ── */
+  .badge-active    { @apply bg-blue-50   text-blue-700   text-[11px] font-semibold px-2.5 py-0.5 rounded uppercase tracking-wide; }
+  .badge-screening { @apply bg-amber-50  text-amber-700  text-[11px] font-semibold px-2.5 py-0.5 rounded uppercase tracking-wide; }
+  .badge-completed { @apply bg-emerald-50 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded uppercase tracking-wide; }
+
+  /* ── Score chips ── */
+  .score-high   { @apply bg-[#16a34a] text-white; }
+  .score-mid    { @apply bg-[#22c55e] text-white; }
+  .score-low    { @apply bg-[#f59e0b] text-white; }
+  .score-poor   { @apply bg-[#f97316] text-white; }
+
+  /* ── Fit badges ── */
+  .fit-high-match  { @apply bg-[#dcfce7] text-[#15803d] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .fit-strong-fit  { @apply bg-[#bbf7d0] text-[#166534] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .fit-good-fit    { @apply bg-[#fed7aa] text-[#c2410c] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+  .fit-low-fit     { @apply bg-[#fee2e2] text-[#dc2626] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide; }
+
+  /* ── Skill tags ── */
+  .skill-must   { @apply bg-[#0f172a] text-white text-[11px] font-semibold px-2.5 py-1 rounded; }
+  .skill-nice   { @apply bg-transparent border border-[#c6c6cd] text-[#45464d] text-[11px] font-semibold px-2.5 py-1 rounded; }
+
+  /* ── Score bar ── */
+  .score-bar { @apply h-1.5 rounded-full bg-[#eceef0] overflow-hidden; }
+  .score-fill { @apply h-full rounded-full transition-all duration-700; }
+
+  /* ── Section labels ── */
+  .section-label {
+    @apply text-[11px] font-semibold text-[#45464d] uppercase tracking-[0.05em];
+  }
+}
