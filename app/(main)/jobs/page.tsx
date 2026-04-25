@@ -8,20 +8,31 @@ import {
   Plus, X, Users, Calendar, Search,
   Pencil, Trash2, Upload, Cpu, Trophy, AlertTriangle, ArrowLeft,
   MapPin, DollarSign, Shield, ChevronRight, LayoutGrid, List, AlignJustify,
-  ChevronDown,
+  ChevronDown, Briefcase, Clock,
 } from 'lucide-react';
 import type { Job } from '@/types';
 import Link from 'next/link';
 
-const STATUS_LABEL: Record<string, string> = { active: 'SHORTLISTING ACTIVE', screening: 'SCREENING', completed: 'COMPLETED' };
-const STATUS_CLS: Record<string, string> = {
-  active:    'bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]',
-  screening: 'bg-[#fffbeb] text-[#d97706] border border-[#fde68a]',
-  completed: 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]',
+const STATUS_LABEL: Record<string, string> = {
+  active:    'Shortlisting',
+  screening: 'Screening',
+  completed: 'Completed',
 };
-const ALL_STATUSES = ['all', 'active', 'screening', 'completed'] as const;
+const STATUS_CLS: Record<string, string> = {
+  active:    'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  screening: 'bg-amber-50  text-amber-700  border border-amber-200',
+  completed: 'bg-blue-50   text-blue-700   border border-blue-200',
+};
+const STATUS_DOT: Record<string, string> = {
+  active:    'bg-emerald-500',
+  screening: 'bg-amber-500',
+  completed: 'bg-blue-500',
+};
 
+const ALL_STATUSES = ['all', 'active', 'screening', 'completed'] as const;
 const EDUCATION_OPTIONS = ["Any", "High School", "Bachelor's", "Master's", "PhD", "Professional Certification"];
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 interface FormData {
   title: string; department: string; description: string; location: string;
@@ -36,44 +47,43 @@ const emptyForm = (): FormData => ({
   experienceYears: 0, educationRequired: 'Any', shortlistTarget: 10,
 });
 
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function JobsPage() {
   const dispatch = useAppDispatch();
-  const router = useRouter();
+  const router   = useRouter();
   const { items: jobs, loading, error } = useAppSelector((s) => s.jobs);
 
-  const [showForm, setShowForm]     = useState(false);
-  const [editTarget, setEditTarget] = useState<Job | null>(null);
-  const [form, setForm]             = useState<FormData>(emptyForm());
-  const [saving, setSaving]         = useState(false);
-  const [deleteId, setDeleteId]     = useState<string | null>(null);
-  const [deleting, setDeleting]     = useState(false);
-  const [search, setSearch]         = useState('');
-  const [statusFilter, setStatusFilter] = useState<typeof ALL_STATUSES[number]>('all');
-  const [selectedJob, setSelectedJob]   = useState<Job | null>(null);
-  const [seeding, setSeeding]           = useState(false);
-  const [viewMode, setViewMode]         = useState<'cards' | 'list' | 'compact'>('cards');
-  const [viewOpen, setViewOpen]         = useState(false);
+  const [showForm,      setShowForm]      = useState(false);
+  const [editTarget,    setEditTarget]    = useState<Job | null>(null);
+  const [form,          setForm]          = useState<FormData>(emptyForm());
+  const [saving,        setSaving]        = useState(false);
+  const [deleteId,      setDeleteId]      = useState<string | null>(null);
+  const [deleting,      setDeleting]      = useState(false);
+  const [search,        setSearch]        = useState('');
+  const [statusFilter,  setStatusFilter]  = useState<typeof ALL_STATUSES[number]>('all');
+  const [selectedJob,   setSelectedJob]   = useState<Job | null>(null);
+  const [seeding,       setSeeding]       = useState(false);
+  const [viewMode,      setViewMode]      = useState<'cards' | 'list' | 'compact'>('cards');
+  const [viewOpen,      setViewOpen]      = useState(false);
 
-  // Auto-select job from URL ?id= param (e.g. coming from dashboard)
   useEffect(() => {
     if (typeof window === 'undefined' || jobs.length === 0) return;
     const id = new URLSearchParams(window.location.search).get('id');
-    if (id) {
-      const job = jobs.find((j) => j._id === id);
-      if (job) setSelectedJob(job);
-    }
+    if (id) { const job = jobs.find((j) => j._id === id); if (job) setSelectedJob(job); }
   }, [jobs]);
 
   const handleSeedJobs = async () => {
     setSeeding(true);
-    await fetch('/api/dev/seed', { method: 'POST' });
+    await fetch(`${API}/api/dev/seed`, { method: 'POST' });
     await dispatch(fetchJobs());
     setSeeding(false);
   };
 
   useEffect(() => { dispatch(fetchJobs()); }, [dispatch]);
 
-  // Close view dropdown on outside click
   useEffect(() => {
     if (!viewOpen) return;
     const close = () => setViewOpen(false);
@@ -82,35 +92,24 @@ export default function JobsPage() {
   }, [viewOpen]);
 
   const openCreate = () => router.push('/jobs/new');
-  const openEdit = (job: Job, e: React.MouseEvent) => {
+  const openEdit   = (job: Job, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditTarget(job);
     setForm({
       title: job.title, department: job.department, description: job.description,
       location: job.location || 'Remote',
       skillInput: '', requiredSkills: [...job.requiredSkills],
-      niceInput: '', niceToHaveSkills: [...(job.niceToHaveSkills ?? [])],
+      niceInput:  '', niceToHaveSkills: [...(job.niceToHaveSkills ?? [])],
       experienceYears: job.experienceYears, educationRequired: job.educationRequired || 'Any',
       shortlistTarget: job.shortlistTarget,
     });
     setShowForm(true);
   };
 
-  const addSkill = () => {
-    const s = form.skillInput.trim();
-    if (s && !form.requiredSkills.includes(s))
-      setForm((f) => ({ ...f, requiredSkills: [...f.requiredSkills, s], skillInput: '' }));
-  };
-  const removeSkill = (sk: string) =>
-    setForm((f) => ({ ...f, requiredSkills: f.requiredSkills.filter((s) => s !== sk) }));
-
-  const addNice = () => {
-    const s = form.niceInput.trim();
-    if (s && !form.niceToHaveSkills.includes(s))
-      setForm((f) => ({ ...f, niceToHaveSkills: [...f.niceToHaveSkills, s], niceInput: '' }));
-  };
-  const removeNice = (sk: string) =>
-    setForm((f) => ({ ...f, niceToHaveSkills: f.niceToHaveSkills.filter((s) => s !== sk) }));
+  const addSkill  = () => { const s = form.skillInput.trim(); if (s && !form.requiredSkills.includes(s)) setForm((f) => ({ ...f, requiredSkills: [...f.requiredSkills, s], skillInput: '' })); };
+  const removeSkill = (sk: string) => setForm((f) => ({ ...f, requiredSkills: f.requiredSkills.filter((s) => s !== sk) }));
+  const addNice   = () => { const s = form.niceInput.trim(); if (s && !form.niceToHaveSkills.includes(s)) setForm((f) => ({ ...f, niceToHaveSkills: [...f.niceToHaveSkills, s], niceInput: '' })); };
+  const removeNice  = (sk: string) => setForm((f) => ({ ...f, niceToHaveSkills: f.niceToHaveSkills.filter((s) => s !== sk) }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,162 +147,122 @@ export default function JobsPage() {
   if (selectedJob) {
     const mustHave   = selectedJob.requiredSkills;
     const niceToHave = selectedJob.niceToHaveSkills ?? [];
-    const healthPct = Math.min(99, Math.max(60, selectedJob.applicantCount > 0 ? 78 + Math.round(Math.random() * 15) : 0));
+    const healthPct  = selectedJob.applicantCount > 0 ? Math.min(99, Math.max(60, 78 + Math.round(Math.random() * 15))) : 0;
 
     return (
       <div className="max-w-2xl">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[11px] text-[#45464d] font-semibold uppercase tracking-wide mb-4">
+        <div className="flex items-center gap-1.5 text-[11px] text-[#45464d] font-semibold uppercase tracking-wide mb-5">
           <button onClick={() => setSelectedJob(null)} className="flex items-center gap-1 hover:text-[#0f172a] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Jobs
           </button>
           <ChevronRight className="w-3 h-3 text-[#c6c6cd]" />
           <span className="text-[#76777d]">{selectedJob.department}</span>
           <ChevronRight className="w-3 h-3 text-[#c6c6cd]" />
-          <span className="text-[#76777d]">Requirements</span>
+          <span className="text-[#76777d]">Details</span>
         </div>
 
-        {/* Job Header Card */}
         <div className="card mb-4">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <h1 className="text-2xl font-bold text-[#191c1e] leading-tight">{selectedJob.title}</h1>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wide whitespace-nowrap flex-shrink-0 ${STATUS_CLS[selectedJob.status]}`}>
-              {STATUS_LABEL[selectedJob.status]}
-            </span>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${STATUS_CLS[selectedJob.status]}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[selectedJob.status]}`} />
+                  {STATUS_LABEL[selectedJob.status]}
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold text-[#191c1e] leading-tight capitalize">{selectedJob.title}</h1>
+            </div>
+            <button onClick={(e) => openEdit(selectedJob, e)} className="flex items-center gap-1.5 text-xs font-semibold text-[#45464d] hover:text-blue-600 border border-[#e6e8ea] hover:border-blue-300 rounded-md px-3 py-2 transition-all flex-shrink-0">
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </button>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-[#45464d]">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-[#76777d]" />
-              {selectedJob.department} · {selectedJob.location || 'Remote'}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-[#76777d]" />
-              Competitive
-            </span>
+          <div className="flex flex-wrap gap-4 text-sm text-[#45464d] pt-3 border-t border-[#f2f4f6]">
+            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#76777d]" />{selectedJob.department} · {selectedJob.location || 'Remote'}</span>
+            <span className="flex items-center gap-1.5"><DollarSign className="w-4 h-4 text-[#76777d]" />Competitive</span>
           </div>
         </div>
 
-        {/* Job Description */}
         {selectedJob.description && (
           <div className="card mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="section-label">DETAILED JOB DESCRIPTION</p>
-              <button onClick={(e) => openEdit(selectedJob, e)} className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
-                <Pencil className="w-3 h-3" /> Edit Requirements
-              </button>
-            </div>
+            <p className="section-label mb-3">JOB DESCRIPTION</p>
             <div className="text-sm text-[#45464d] leading-relaxed whitespace-pre-wrap">{selectedJob.description}</div>
           </div>
         )}
 
-        {/* Core Criteria */}
         <div className="card mb-4">
           <p className="section-label mb-4">CORE CRITERIA</p>
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs text-[#76777d] mb-1.5">Experience Level</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-md bg-[#f2f4f6] flex items-center justify-center flex-shrink-0">
-                  <Users className="w-4 h-4 text-[#45464d]" />
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { icon: Users,    label: 'Experience', value: `${selectedJob.experienceYears}+ Years`, sub: 'Industry experience' },
+              { icon: Calendar, label: 'Education',  value: selectedJob.educationRequired || 'Any', sub: 'Minimum level' },
+              { icon: Trophy,   label: 'Shortlist',  value: `Top ${selectedJob.shortlistTarget}`, sub: 'Target candidates' },
+              { icon: Shield,   label: 'Authorization', value: 'Open to all', sub: 'All candidates eligible', green: true },
+            ].map(({ icon: Icon, label, value, sub, green }) => (
+              <div key={label} className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f9fb]">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${green ? 'bg-emerald-50' : 'bg-white border border-[#e6e8ea]'}`}>
+                  <Icon className={`w-4 h-4 ${green ? 'text-emerald-600' : 'text-[#45464d]'}`} />
                 </div>
-                <div>
-                  <p className="font-bold text-[#191c1e]">{selectedJob.experienceYears}+ Years</p>
-                  <p className="text-xs text-[#76777d]">Industry experience</p>
-                </div>
-              </div>
-            </div>
-            <div className="h-px bg-[#f2f4f6]" />
-            <div>
-              <p className="text-xs text-[#76777d] mb-1.5">Education Required</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-md bg-[#f2f4f6] flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-4 h-4 text-[#45464d]" />
-                </div>
-                <div>
-                  <p className="font-bold text-[#191c1e]">{selectedJob.educationRequired || 'Any'}</p>
-                  <p className="text-xs text-[#76777d]">Minimum education level</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-[#191c1e] text-sm truncate">{value}</p>
+                  <p className="text-[11px] text-[#76777d]">{sub}</p>
                 </div>
               </div>
-            </div>
-            <div className="h-px bg-[#f2f4f6]" />
-            <div>
-              <p className="text-xs text-[#76777d] mb-1.5">Target Shortlist</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-md bg-[#f2f4f6] flex items-center justify-center flex-shrink-0">
-                  <Trophy className="w-4 h-4 text-[#45464d]" />
-                </div>
-                <div>
-                  <p className="font-bold text-[#191c1e]">Top {selectedJob.shortlistTarget}</p>
-                  <p className="text-xs text-[#76777d]">Candidates to shortlist</p>
-                </div>
-              </div>
-            </div>
-            <div className="h-px bg-[#f2f4f6]" />
-            <div>
-              <p className="text-xs text-[#76777d] mb-1.5">Work Authorization</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-md bg-[#f0fdf4] flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-4 h-4 text-[#16a34a]" />
-                </div>
-                <p className="font-semibold text-[#191c1e] text-sm">Open to all candidates</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Technical Skills */}
         <div className="card mb-4">
           <p className="section-label mb-4">TECHNICAL SKILLS</p>
           {mustHave.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-[#76777d] mb-2">Must-Have</p>
+              <p className="text-xs font-semibold text-[#45464d] mb-2">Must-Have</p>
               <div className="flex flex-wrap gap-2">
-                {mustHave.map((s) => <span key={s} className="skill-must">{s.toUpperCase()}</span>)}
+                {mustHave.map((s) => (
+                  <span key={s} className="text-xs bg-[#0f172a] text-white px-3 py-1 rounded-full font-semibold uppercase tracking-wide">{s}</span>
+                ))}
               </div>
             </div>
           )}
           {niceToHave.length > 0 && (
             <div>
-              <p className="text-xs text-[#76777d] mb-2">Nice-to-Have</p>
+              <p className="text-xs font-semibold text-[#45464d] mb-2">Nice-to-Have</p>
               <div className="flex flex-wrap gap-2">
-                {niceToHave.map((s) => <span key={s} className="skill-nice">{s.toUpperCase()}</span>)}
+                {niceToHave.map((s) => (
+                  <span key={s} className="text-xs bg-[#f2f4f6] text-[#45464d] border border-[#e6e8ea] px-3 py-1 rounded-full font-semibold uppercase tracking-wide">{s}</span>
+                ))}
               </div>
             </div>
           )}
         </div>
 
-        {/* Shortlist Health */}
         {selectedJob.applicantCount > 0 && (
-          <div className="card mb-4 bg-[#f7f9fb]">
-            <p className="section-label mb-2">SHORTLIST HEALTH</p>
-            <p className="text-4xl font-bold text-[#191c1e] mb-1">{healthPct}%</p>
-            <p className="text-xs text-[#76777d] mb-3">Candidate match density for this criteria set.</p>
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className={`flex-1 rounded-sm ${i < Math.round(healthPct / 20) ? 'bg-[#0f172a]' : 'bg-[#e6e8ea]'}`} style={{ height: `${12 + i * 4}px` }} />
+          <div className="card mb-4">
+            <p className="section-label mb-3">PIPELINE HEALTH</p>
+            <div className="flex items-end gap-4">
+              <p className="text-4xl font-bold text-[#191c1e]">{healthPct}%</p>
+              <p className="text-xs text-[#76777d] pb-1 flex-1">Match density for this criteria set across {selectedJob.applicantCount} candidate{selectedJob.applicantCount !== 1 ? 's' : ''}.</p>
+            </div>
+            <div className="flex gap-1 mt-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className={`flex-1 rounded-sm transition-all ${i < Math.round(healthPct / 12.5) ? 'bg-[#0f172a]' : 'bg-[#e6e8ea]'}`} style={{ height: `${8 + i * 2}px` }} />
               ))}
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
           <Link href="/applicants" onClick={() => dispatch(selectJob(selectedJob))} className="flex-1">
-            <button className="btn-secondary w-full justify-center py-3">
-              <Upload className="w-4 h-4" /> Upload Candidates
-            </button>
+            <button className="btn-secondary w-full justify-center py-3"><Upload className="w-4 h-4" /> Upload Candidates</button>
           </Link>
           {(selectedJob.status === 'active' || selectedJob.status === 'screening') && selectedJob.applicantCount > 0 && (
             <Link href="/screening" onClick={() => dispatch(selectJob(selectedJob))} className="flex-1">
-              <button className="btn-primary w-full justify-center py-3">
-                <Cpu className="w-4 h-4" /> Run Screening
-              </button>
+              <button className="btn-primary w-full justify-center py-3"><Cpu className="w-4 h-4" /> Run AI Screening</button>
             </Link>
           )}
           {selectedJob.status === 'completed' && (
             <Link href="/shortlist" onClick={() => dispatch(selectJob(selectedJob))} className="flex-1">
-              <button className="w-full justify-center py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md flex items-center gap-2 text-sm">
-                <Trophy className="w-4 h-4" /> Review Candidates ({selectedJob.applicantCount})
+              <button className="w-full justify-center py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md flex items-center gap-2 text-sm transition-colors">
+                <Trophy className="w-4 h-4" /> View Shortlist ({selectedJob.applicantCount})
               </button>
             </Link>
           )}
@@ -314,38 +273,33 @@ export default function JobsPage() {
 
   /* ── Job List View ── */
   return (
-    <div className="max-w-3xl lg:max-w-none space-y-3">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#191c1e]">Jobs</h1>
           <p className="text-[#45464d] text-sm mt-0.5">{jobs.length} posting{jobs.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View format dropdown */}
+          {/* View dropdown */}
           <div className="relative">
-            <button
-              onClick={() => setViewOpen((v) => !v)}
-              className="btn-secondary !py-2 !px-3 !text-xs flex items-center gap-1.5"
-            >
+            <button onClick={(e) => { e.stopPropagation(); setViewOpen((v) => !v); }}
+              className="btn-secondary !py-2 !px-3 gap-1.5">
               {viewMode === 'cards'   && <LayoutGrid  className="w-3.5 h-3.5" />}
               {viewMode === 'list'    && <List         className="w-3.5 h-3.5" />}
               {viewMode === 'compact' && <AlignJustify className="w-3.5 h-3.5" />}
-              View
+              <span className="text-xs">View</span>
               <ChevronDown className="w-3 h-3" />
             </button>
             {viewOpen && (
-              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#e6e8ea] rounded-lg shadow-lg py-1 w-44">
+              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#e6e8ea] rounded-xl shadow-lg py-1.5 w-40">
                 {([
                   { key: 'cards'   as const, Icon: LayoutGrid,   label: 'Cards'   },
                   { key: 'list'    as const, Icon: List,          label: 'List'    },
                   { key: 'compact' as const, Icon: AlignJustify,  label: 'Compact' },
                 ] as const).map(({ key, Icon, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => { setViewMode(key); setViewOpen(false); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${viewMode === key ? 'bg-[#f2f4f6] text-[#191c1e] font-semibold' : 'text-[#45464d] hover:bg-[#f7f9fb]'}`}
-                  >
+                  <button key={key} onClick={() => { setViewMode(key); setViewOpen(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${viewMode === key ? 'bg-[#f2f4f6] text-[#191c1e] font-semibold' : 'text-[#45464d] hover:bg-[#f7f9fb]'}`}>
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     {label}
                   </button>
@@ -354,17 +308,11 @@ export default function JobsPage() {
             )}
           </div>
 
-          <button
-            onClick={handleSeedJobs}
-            disabled={seeding}
-            className="btn-secondary !py-2 !px-3 !text-xs"
-            title="Add 10 diverse sample job postings"
-          >
-            {seeding ? (
-              <><div className="w-3.5 h-3.5 border-2 border-[#76777d] border-t-transparent rounded-full animate-spin" /> Loading…</>
-            ) : (
-              <><Plus className="w-3.5 h-3.5" /> Load Sample Jobs</>
-            )}
+          <button onClick={handleSeedJobs} disabled={seeding} className="btn-secondary !py-2 !px-3 gap-1.5">
+            {seeding
+              ? <><div className="w-3.5 h-3.5 border-2 border-[#76777d] border-t-transparent rounded-full animate-spin" /><span className="text-xs">Loading…</span></>
+              : <><Plus className="w-3.5 h-3.5" /><span className="text-xs">Load Sample Jobs</span></>
+            }
           </button>
           <button className="btn-primary" onClick={openCreate}>
             <Plus className="w-4 h-4" /> Post New Job
@@ -372,86 +320,96 @@ export default function JobsPage() {
         </div>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-md px-4 py-3 text-sm">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
-      {/* Status filter tabs */}
-      <div className="flex gap-1 bg-[#f2f4f6] rounded-md p-1 w-fit">
-        {ALL_STATUSES.map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded text-xs font-semibold capitalize transition-colors ${
-              statusFilter === s ? 'bg-white text-[#191c1e] shadow-sm' : 'text-[#45464d] hover:text-[#191c1e]'
-            }`}>
-            {s === 'all' ? `All (${jobs.length})` : `${s === 'active' ? 'Active' : s === 'screening' ? 'Screening' : 'Completed'} (${counts[s as keyof typeof counts]})`}
-          </button>
-        ))}
+      {/* ── Filters row ── */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* Status tabs */}
+        <div className="flex gap-1 bg-[#f2f4f6] rounded-lg p-1">
+          {ALL_STATUSES.map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
+                statusFilter === s ? 'bg-white text-[#191c1e] shadow-sm' : 'text-[#76777d] hover:text-[#191c1e]'
+              }`}>
+              {s === 'all'
+                ? `All (${jobs.length})`
+                : `${s.charAt(0).toUpperCase() + s.slice(1)} (${counts[s as keyof typeof counts]})`
+              }
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
+          <input className="input pl-10 h-full" placeholder="Search by title or department…"
+            value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
-        <input className="input pl-10" placeholder="Search by title or department…" value={search}
-          onChange={(e) => setSearch(e.target.value)} />
-      </div>
-
-      {/* Jobs list */}
+      {/* ── Content ── */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="card h-28 animate-pulse bg-[#eceef0]" />)}
+        <div className={viewMode === 'cards' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-2'}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className={`rounded-xl bg-[#f2f4f6] animate-pulse ${viewMode === 'cards' ? 'h-52' : 'h-16'}`} />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="card text-center py-16">
-          <div className="w-12 h-12 rounded-full bg-[#f2f4f6] flex items-center justify-center mx-auto mb-3">
-            <Briefcase className="w-6 h-6 text-[#c6c6cd]" />
+          <div className="w-14 h-14 rounded-full bg-[#f2f4f6] flex items-center justify-center mx-auto mb-4">
+            <Briefcase className="w-7 h-7 text-[#c6c6cd]" />
           </div>
-          <p className="font-semibold text-[#45464d]">{jobs.length === 0 ? 'No job postings yet' : 'No jobs match your filter'}</p>
+          <p className="font-bold text-[#191c1e] mb-1">{jobs.length === 0 ? 'No job postings yet' : 'No jobs match your filter'}</p>
+          <p className="text-sm text-[#76777d]">{jobs.length === 0 ? 'Create your first job posting to get started.' : 'Try adjusting your search or filter.'}</p>
           {jobs.length === 0 && (
-            <button className="btn-primary mt-4 mx-auto" onClick={openCreate}>
+            <button className="btn-primary mt-5 mx-auto" onClick={openCreate}>
               <Plus className="w-4 h-4" /> Create your first job
             </button>
           )}
         </div>
       ) : viewMode === 'compact' ? (
-        /* ── Compact (table rows) ── */
+        /* ── Compact table ── */
         <div className="card overflow-hidden p-0">
           <table className="w-full text-sm">
             <thead className="bg-[#f7f9fb] border-b border-[#e6e8ea]">
               <tr>
-                {['Title', 'Department', 'Skills', 'Applicants', 'Status', ''].map((h) => (
-                  <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold text-[#76777d] uppercase tracking-wider whitespace-nowrap">{h}</th>
+                {['Job Title', 'Department', 'Skills', 'Applicants', 'Status', ''].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#76777d] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f2f4f6]">
+            <tbody className="divide-y divide-[#f7f9fb]">
               {filtered.map((job) => (
                 <tr key={job._id} onClick={() => setSelectedJob(job)} className="hover:bg-[#f7f9fb] cursor-pointer group transition-colors">
-                  <td className="px-4 py-2.5">
-                    <p className="font-semibold text-[#191c1e] text-[13px] whitespace-nowrap">{job.title}</p>
-                    <p className="text-[11px] text-[#76777d]">{job.experienceYears}+ yrs exp</p>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-[#191c1e] text-[13px] capitalize">{job.title}</p>
+                    <p className="text-[11px] text-[#76777d] mt-0.5">{job.experienceYears}+ yrs exp</p>
                   </td>
-                  <td className="px-4 py-2.5 text-[12px] text-[#45464d] whitespace-nowrap">{job.department}</td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-3 text-xs text-[#45464d] whitespace-nowrap">{job.department}</td>
+                  <td className="px-4 py-3">
                     <div className="flex gap-1 flex-wrap max-w-[200px]">
                       {job.requiredSkills.slice(0, 3).map((s) => (
-                        <span key={s} className="text-[10px] bg-[#f2f4f6] text-[#45464d] px-1.5 py-0.5 rounded uppercase font-semibold">{s}</span>
+                        <span key={s} className="text-[10px] bg-[#f2f4f6] text-[#45464d] px-1.5 py-0.5 rounded-full uppercase font-semibold">{s}</span>
                       ))}
                       {job.requiredSkills.length > 3 && <span className="text-[10px] text-[#76777d]">+{job.requiredSkills.length - 3}</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] font-semibold text-[#191c1e] whitespace-nowrap">{job.applicantCount}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide whitespace-nowrap ${STATUS_CLS[job.status]}`}>
+                  <td className="px-4 py-3 text-[13px] font-bold text-[#191c1e]">{job.applicantCount}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full ${STATUS_CLS[job.status]}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[job.status]}`} />
                       {STATUS_LABEL[job.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => openEdit(job, e)} className="p-1 rounded text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                      <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded-md text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }} className="p-1 rounded text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }} className="p-1.5 rounded-md text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <ChevronRight className="w-4 h-4 text-[#c6c6cd]" />
+                      <ChevronRight className="w-4 h-4 text-[#c6c6cd] ml-1" />
                     </div>
                   </td>
                 </tr>
@@ -460,84 +418,109 @@ export default function JobsPage() {
           </table>
         </div>
       ) : viewMode === 'list' ? (
-        /* ── List (compact cards) ── */
-        <div className="space-y-1.5">
+        /* ── List rows ── */
+        <div className="space-y-2">
           {filtered.map((job) => (
             <div key={job._id} onClick={() => setSelectedJob(job)} role="button" tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedJob(job); }}
-              className="card w-full text-left hover:border-[#c6c6cd] hover:shadow-sm transition-all px-4 py-3 cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-[#191c1e] text-[13px]">{job.title}</p>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${STATUS_CLS[job.status]}`}>
-                      {STATUS_LABEL[job.status]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-[11px] text-[#76777d]">
-                    <span>{job.department}</span>
-                    <span className="flex items-center gap-0.5"><Users className="w-2.5 h-2.5" /> {job.applicantCount}</span>
-                    <span>{job.experienceYears}+ yrs</span>
-                    <span className="hidden sm:flex gap-1">
-                      {job.requiredSkills.slice(0, 3).map((s) => (
-                        <span key={s} className="bg-[#f2f4f6] text-[#45464d] px-1.5 py-0.5 rounded uppercase font-semibold text-[10px]">{s}</span>
-                      ))}
-                      {job.requiredSkills.length > 3 && <span className="text-[#76777d]">+{job.requiredSkills.length - 3}</span>}
-                    </span>
-                  </div>
+              className="bg-white border border-[#e6e8ea] rounded-xl px-4 py-3.5 cursor-pointer hover:border-[#c6c6cd] hover:shadow-sm transition-all group flex items-center gap-4">
+              {/* Status dot */}
+              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[job.status]}`} />
+              {/* Main info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-[#191c1e] text-[14px] capitalize">{job.title}</p>
+                  <span className="text-[#76777d] text-xs">·</span>
+                  <span className="text-xs text-[#76777d]">{job.department}</span>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }} className="p-1.5 rounded text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                  <ChevronRight className="w-4 h-4 text-[#c6c6cd] ml-1" />
+                <div className="flex items-center gap-3 mt-1 text-[11px] text-[#76777d]">
+                  <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {job.applicantCount} applicant{job.applicantCount !== 1 ? 's' : ''}</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {job.experienceYears}+ yrs</span>
+                  <span className="hidden sm:flex gap-1">
+                    {job.requiredSkills.slice(0, 3).map((s) => (
+                      <span key={s} className="bg-[#f2f4f6] text-[#45464d] px-2 py-0.5 rounded-full uppercase font-semibold text-[10px]">{s}</span>
+                    ))}
+                    {job.requiredSkills.length > 3 && <span>+{job.requiredSkills.length - 3}</span>}
+                  </span>
                 </div>
+              </div>
+              {/* Status pill */}
+              <span className={`hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_CLS[job.status]}`}>
+                {STATUS_LABEL[job.status]}
+              </span>
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded-md text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }} className="p-1.5 rounded-md text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <ChevronRight className="w-4 h-4 text-[#c6c6cd]" />
               </div>
             </div>
           ))}
         </div>
       ) : (
         /* ── Cards (default) ── */
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((job) => (
             <div key={job._id} onClick={() => setSelectedJob(job)} role="button" tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedJob(job); }}
-              className="card w-full text-left hover:border-[#c6c6cd] hover:shadow-sm transition-all p-4 cursor-pointer">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-bold text-[#191c1e]">{job.title}</p>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide ${STATUS_CLS[job.status]}`}>
-                      {STATUS_LABEL[job.status]}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#45464d]">{job.department}</p>
-                  <div className="flex items-center gap-4 mt-1.5 text-xs text-[#76777d]">
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {job.applicantCount} applicants</span>
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    <span>{job.experienceYears}+ yrs exp</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {job.requiredSkills.slice(0, 4).map((s) => (
-                      <span key={s} className="text-[10px] bg-[#f2f4f6] text-[#45464d] px-2 py-0.5 rounded uppercase font-semibold tracking-wide">{s}</span>
-                    ))}
-                    {job.requiredSkills.length > 4 && (
-                      <span className="text-[10px] text-[#76777d]">+{job.requiredSkills.length - 4}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
+              className="group bg-white border border-[#e6e8ea] rounded-2xl p-5 cursor-pointer hover:border-[#c6c6cd] hover:shadow-md transition-all flex flex-col gap-4">
+
+              {/* ── Card top: status + actions ── */}
+              <div className="flex items-start justify-between gap-2">
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${STATUS_CLS[job.status]}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[job.status]}`} />
+                  {STATUS_LABEL[job.status]}
+                </span>
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => openEdit(job, e)}
+                    className="p-1.5 rounded-lg text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }} className="p-1.5 rounded text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteId(job._id); }}
+                    className="p-1.5 rounded-lg text-[#76777d] hover:text-red-600 hover:bg-red-50 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                  <ChevronRight className="w-4 h-4 text-[#c6c6cd] ml-1" />
                 </div>
+              </div>
+
+              {/* ── Title + department ── */}
+              <div>
+                <h3 className="font-bold text-[#191c1e] text-[15px] leading-snug capitalize mb-1">{job.title}</h3>
+                <p className="text-xs text-[#76777d]">{job.department} · {job.location || 'Remote'}</p>
+              </div>
+
+              {/* ── Stats row ── */}
+              <div className="flex items-center gap-4 text-[11px] text-[#76777d] pt-3 border-t border-[#f2f4f6]">
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  {job.applicantCount} applicant{job.applicantCount !== 1 ? 's' : ''}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {fmtDate(job.createdAt)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  {job.experienceYears}+ yrs
+                </span>
+              </div>
+
+              {/* ── Skills ── */}
+              <div className="flex flex-wrap gap-1.5 mt-auto">
+                {job.requiredSkills.slice(0, 4).map((s) => (
+                  <span key={s} className="text-[10px] bg-[#f2f4f6] text-[#45464d] px-2.5 py-1 rounded-full uppercase font-semibold tracking-wide">
+                    {s}
+                  </span>
+                ))}
+                {job.requiredSkills.length > 4 && (
+                  <span className="text-[10px] text-[#76777d] px-1 py-1">
+                    +{job.requiredSkills.length - 4} more
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -547,39 +530,40 @@ export default function JobsPage() {
       {/* ── Edit Modal ── */}
       {showForm && editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-[#e6e8ea]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e6e8ea]">
               <h2 className="font-bold text-[#191c1e]">Edit Job</h2>
-              <button onClick={() => setShowForm(false)} className="text-[#76777d] hover:text-[#191c1e] p-1">
+              <button onClick={() => setShowForm(false)} className="text-[#76777d] hover:text-[#191c1e] p-1 rounded-md hover:bg-[#f2f4f6] transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="label">Job Title *</label>
                 <input className="input" placeholder="e.g. Senior Software Engineer" value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
               </div>
-              <div>
-                <label className="label">Department *</label>
-                <input className="input" placeholder="e.g. Engineering" value={form.department}
-                  onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} required />
-              </div>
-              <div>
-                <label className="label">Location</label>
-                <input className="input" placeholder="e.g. Remote, Kigali, Nairobi" value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Department *</label>
+                  <input className="input" placeholder="e.g. Engineering" value={form.department}
+                    onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="label">Location</label>
+                  <input className="input" placeholder="e.g. Remote, Kigali" value={form.location}
+                    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+                </div>
               </div>
               <div>
                 <label className="label">Description</label>
-                <textarea className="input resize-none" rows={4} placeholder="Role description and responsibilities…"
+                <textarea className="input resize-none" rows={3} placeholder="Role description…"
                   value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Required Skills *</label>
                 <div className="flex gap-2">
-                  <input className="input" placeholder="Type a skill and press Enter"
-                    value={form.skillInput}
+                  <input className="input" placeholder="Type a skill and press Enter" value={form.skillInput}
                     onChange={(e) => setForm((f) => ({ ...f, skillInput: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }} />
                   <button type="button" onClick={addSkill} className="btn-secondary !px-3 flex-shrink-0">Add</button>
@@ -587,7 +571,7 @@ export default function JobsPage() {
                 {form.requiredSkills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {form.requiredSkills.map((s) => (
-                      <span key={s} className="flex items-center gap-1 bg-[#0f172a] text-white text-xs px-2.5 py-1 rounded font-medium">
+                      <span key={s} className="flex items-center gap-1 bg-[#0f172a] text-white text-xs px-2.5 py-1 rounded-full font-medium">
                         {s} <button type="button" onClick={() => removeSkill(s)}><X className="w-3 h-3" /></button>
                       </span>
                     ))}
@@ -597,8 +581,7 @@ export default function JobsPage() {
               <div>
                 <label className="label">Nice-to-Have Skills</label>
                 <div className="flex gap-2">
-                  <input className="input" placeholder="Optional skills (bonus)"
-                    value={form.niceInput}
+                  <input className="input" placeholder="Optional skills" value={form.niceInput}
                     onChange={(e) => setForm((f) => ({ ...f, niceInput: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNice(); } }} />
                   <button type="button" onClick={addNice} className="btn-secondary !px-3 flex-shrink-0">Add</button>
@@ -606,7 +589,7 @@ export default function JobsPage() {
                 {form.niceToHaveSkills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {form.niceToHaveSkills.map((s) => (
-                      <span key={s} className="flex items-center gap-1 bg-[#f2f4f6] text-[#45464d] border border-[#e6e8ea] text-xs px-2.5 py-1 rounded font-medium">
+                      <span key={s} className="flex items-center gap-1 bg-[#f2f4f6] text-[#45464d] border border-[#e6e8ea] text-xs px-2.5 py-1 rounded-full font-medium">
                         {s} <button type="button" onClick={() => removeNice(s)}><X className="w-3 h-3" /></button>
                       </span>
                     ))}
@@ -647,40 +630,31 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* ── Delete Modal ── */}
+      {/* ── Delete Confirm Modal ── */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-md bg-red-50 flex items-center justify-center flex-shrink-0">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="font-bold text-[#191c1e]">Delete Job?</h3>
-                <p className="text-sm text-[#45464d] mt-1">
-                  This permanently deletes the job, all applicants, and screening results. This cannot be undone.
+                <h3 className="font-bold text-[#191c1e] mb-1">Delete this job?</h3>
+                <p className="text-sm text-[#45464d] leading-relaxed">
+                  This permanently removes the job posting, all candidates, and screening results. This cannot be undone.
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-              <button onClick={handleDelete} disabled={deleting} className="btn-danger flex-1 justify-center">
-                {deleting ? 'Deleting…' : 'Delete'}
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 justify-center flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
+                {deleting ? 'Deleting…' : 'Delete Job'}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-/* eslint-disable-next-line */
-function Briefcase({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="7" width="20" height="14" rx="2" />
-      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-    </svg>
   );
 }
