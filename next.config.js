@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['mongoose', 'bcryptjs'],
-  },
+  serverExternalPackages: ['mongoose', 'bcryptjs'],
 
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
