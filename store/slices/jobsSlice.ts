@@ -11,10 +11,12 @@ interface JobsState {
 
 const initialState: JobsState = { items: [], selected: null, loading: false, error: null };
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+
 // ── Thunks ────────────────────────────────────────────────────────────────────
 
 export const fetchJobs = createAsyncThunk('jobs/fetchAll', async (_, { rejectWithValue }) => {
-  const res = await fetch('/api/jobs');
+  const res = await fetch(`${API}/api/jobs`);
   if (!res.ok) return rejectWithValue('Failed to fetch jobs');
   return (await res.json()) as Job[];
 });
@@ -22,7 +24,7 @@ export const fetchJobs = createAsyncThunk('jobs/fetchAll', async (_, { rejectWit
 export const createJob = createAsyncThunk(
   'jobs/create',
   async (data: Omit<Job, '_id' | 'status' | 'applicantCount' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
-    const res = await fetch('/api/jobs', {
+    const res = await fetch(`${API}/api/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -38,7 +40,7 @@ export const createJob = createAsyncThunk(
 export const updateJob = createAsyncThunk(
   'jobs/update',
   async ({ id, data }: { id: string; data: Partial<Job> }, { rejectWithValue }) => {
-    const res = await fetch(`/api/jobs/${id}`, {
+    const res = await fetch(`${API}/api/jobs/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -51,7 +53,7 @@ export const updateJob = createAsyncThunk(
 export const deleteJob = createAsyncThunk(
   'jobs/delete',
   async (id: string, { rejectWithValue }) => {
-    const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API}/api/jobs/${id}`, { method: 'DELETE' });
     if (!res.ok) return rejectWithValue('Failed to delete job');
     return id;
   }
@@ -77,7 +79,6 @@ const jobsSlice = createSlice({
       .addCase(fetchJobs.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
-        // Keep selected job in sync with fresh server data (picks up new applicantCount, status, etc.)
         if (state.selected) {
           const refreshed = action.payload.find((j) => j._id === state.selected!._id);
           if (refreshed) state.selected = refreshed;

@@ -9,7 +9,7 @@ interface ScreeningState {
   runningJobId: string | null;
   error: string | null;
   lastRunJobId: string | null;
-  lastScoringMode: string | null; // 'ai' | 'rule-based'
+  lastScoringMode: string | null;
 }
 
 const initialState: ScreeningState = {
@@ -21,12 +21,14 @@ const initialState: ScreeningState = {
   lastScoringMode: null,
 };
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+
 // ── Thunks ────────────────────────────────────────────────────────────────────
 
 export const runScreening = createAsyncThunk(
   'screening/run',
   async (jobId: string, { rejectWithValue }) => {
-    const res = await fetch('/api/screening/run', {
+    const res = await fetch(`${API}/api/screening/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId }),
@@ -42,7 +44,7 @@ export const runScreening = createAsyncThunk(
 export const fetchShortlist = createAsyncThunk(
   'screening/fetchShortlist',
   async (jobId: string, { rejectWithValue }) => {
-    const res = await fetch(`/api/screening/shortlist/${jobId}`);
+    const res = await fetch(`${API}/api/screening/shortlist/${jobId}`);
     if (!res.ok) return rejectWithValue('Failed to fetch shortlist');
     const data = await res.json();
     return { results: data as (ScreeningResult & { talent: TalentProfile })[], jobId };

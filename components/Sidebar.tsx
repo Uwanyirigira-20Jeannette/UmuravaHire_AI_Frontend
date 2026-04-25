@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { clearAuthUser, getAuthUser, type AuthUser } from '@/lib/auth-client';
 import {
   LayoutDashboard, Briefcase, Users, Cpu, Trophy,
   LogOut, ChevronRight,
@@ -18,13 +19,23 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const router   = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setUser(getAuthUser());
+  }, []);
+
+  const handleSignOut = () => {
+    clearAuthUser();
+    router.push('/');
+  };
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
 
-  const initials = session?.user?.name
-    ? session.user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+  const initials = user?.name
+    ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
   return (
@@ -74,23 +85,19 @@ export default function Sidebar() {
 
       {/* User section */}
       <div className="px-3 pb-4 border-t border-white/8 pt-3">
-        {session?.user ? (
+        {user ? (
           <div className="space-y-1">
             <div className="flex items-center gap-3 px-2 py-2 rounded-md">
-              {session.user.image ? (
-                <img src={session.user.image} alt={session.user.name ?? ''} className="w-7 h-7 rounded-full flex-shrink-0 object-cover border border-white/20" />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold">
-                  {initials}
-                </div>
-              )}
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold">
+                {initials}
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-white truncate">{session.user.name}</p>
-                <p className="text-[10px] text-white/35 truncate">{session.user.email}</p>
+                <p className="text-[13px] font-medium text-white truncate">{user.name}</p>
+                <p className="text-[10px] text-white/35 truncate">{user.email}</p>
               </div>
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: '/' })}
+              onClick={handleSignOut}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-white/40 hover:text-white/70 hover:bg-white/6 transition-all text-[13px] font-medium"
             >
               <LogOut className="w-3.5 h-3.5 flex-shrink-0" />

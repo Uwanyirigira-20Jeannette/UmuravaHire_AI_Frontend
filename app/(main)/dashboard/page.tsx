@@ -37,9 +37,11 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const API = process.env.NEXT_PUBLIC_API_URL ?? '';
+
   useEffect(() => {
-    fetch('/api/dashboard').then((r) => r.json()).then(setStats).finally(() => setLoading(false));
-  }, []);
+    fetch(`${API}/api/dashboard`).then((r) => r.json()).then(setStats).finally(() => setLoading(false));
+  }, [API]);
 
   const noJobs = !loading && (stats?.totalJobs ?? 0) === 0;
 

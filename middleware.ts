@@ -1,18 +1,22 @@
-import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default withAuth(
-  function middleware(_req) {
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+const protectedRoutes = ['/dashboard', '/jobs', '/applicants', '/screening', '/shortlist'];
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));
+
+  if (isProtected && !request.cookies.get('auth-session')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(url);
   }
-);
 
-// Protect all main app routes — public routes (/, /login, /signup, /api/auth/*) are NOT listed here
+  return NextResponse.next();
+}
+
 export const config = {
   matcher: [
     '/dashboard/:path*',

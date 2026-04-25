@@ -198,13 +198,14 @@ export default function ApplicantsPage() {
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
 
   const LIMIT = 10;
+  const API   = process.env.NEXT_PUBLIC_API_URL ?? '';
 
   useEffect(() => { dispatch(fetchJobs()); }, [dispatch]);
 
   const loadApplicants = useCallback(async (jobId: string, page = 1) => {
     setListLoading(true);
     try {
-      const res = await fetch(`/api/applicants?jobId=${jobId}&page=${page}&limit=${LIMIT}`);
+      const res = await fetch(`${API}/api/applicants?jobId=${jobId}&page=${page}&limit=${LIMIT}`);
       if (res.ok) {
         const data = await res.json();
         setApplicants(data.applicants);
@@ -248,7 +249,7 @@ export default function ApplicantsPage() {
       fd.append('file', item.file);
       fd.append('jobId', selectedJob._id);
 
-      const res  = await fetch('/api/applicants/upload', { method: 'POST', body: fd });
+      const res  = await fetch(`${API}/api/applicants/upload`, { method: 'POST', body: fd });
       const data = await res.json();
 
       if (res.ok) {
@@ -271,7 +272,7 @@ export default function ApplicantsPage() {
     try { profiles = JSON.parse(umuravaJson); }
     catch { setImportError('Invalid JSON — check the format'); return; }
     setImporting(true); setImportError(null); setImportResult(null);
-    const res  = await fetch('/api/applicants/import-umurava', {
+    const res  = await fetch(`${API}/api/applicants/import-umurava`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId: selectedJob._id, profiles }),
@@ -287,7 +288,7 @@ export default function ApplicantsPage() {
   const handleDelete = async (id: string) => {
     if (!selectedJob) return;
     setDeletingId(id);
-    await fetch(`/api/applicants/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/api/applicants/${id}`, { method: 'DELETE' });
     setDeletingId(null);
     await dispatch(fetchJobs());
     loadApplicants(selectedJob._id, listPage);
