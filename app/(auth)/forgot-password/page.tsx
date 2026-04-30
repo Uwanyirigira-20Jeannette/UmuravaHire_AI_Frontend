@@ -12,10 +12,25 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate network delay — in production this calls your backend
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSent(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setSent(true);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to send reset link. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
