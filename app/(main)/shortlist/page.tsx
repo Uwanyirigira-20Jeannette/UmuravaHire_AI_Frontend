@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/slices/jobsSlice';
 import { fetchShortlist, clearScreening, clearError } from '@/store/slices/screeningSlice';
@@ -8,6 +8,7 @@ import {
   Download, AlertCircle, Loader2, ArrowLeft, ChevronRight,
   MapPin, Mail, Phone, Briefcase, GraduationCap, Award, Globe,
   Github, Linkedin, ExternalLink, Clock, CheckCircle2, AlertTriangle, MoreVertical,
+  Search, ChevronDown,
 } from 'lucide-react';
 import ScoreBar from '@/components/ScoreBar';
 import type { Job, TalentProfile } from '@/types';
@@ -464,6 +465,69 @@ function CandidateProfile({
   );
 }
 
+/* ── Shortlist Job Searchable Dropdown ── */
+function ShortlistJobSelect({ jobs, selectedJob, onChange }: {
+  jobs: Job[];
+  selectedJob: Job | null;
+  onChange: (job: Job | null) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = jobs.filter((j) =>
+    !search ||
+    j.title.toLowerCase().includes(search.toLowerCase()) ||
+    j.department.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const displayValue = selectedJob && !open
+    ? `${selectedJob.title} · ${selectedJob.applicantCount} applicants · ${selectedJob.status}`
+    : search;
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d] pointer-events-none" />
+        <input
+          value={displayValue}
+          onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => { setOpen(true); if (selectedJob) setSearch(''); }}
+          placeholder="Search and select a job…"
+          className="input pl-10 pr-10"
+        />
+        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d] pointer-events-none transition-transform ${open ? 'rotate-180' : ''}`} />
+      </div>
+      {open && (
+        <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-[#e6e8ea] rounded-xl shadow-xl max-h-64 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-[#76777d]">No jobs match</div>
+          ) : filtered.map((job) => (
+            <button key={job._id} onClick={() => { onChange(job); setOpen(false); setSearch(''); }}
+              className={`w-full text-left px-4 py-3 hover:bg-[#f7f9fb] border-b border-[#f2f4f6] last:border-0 transition-colors ${selectedJob?._id === job._id ? 'bg-[#f0f9ff]' : ''}`}>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${job.status === 'completed' ? 'bg-blue-500' : job.status === 'screening' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                <p className="font-semibold text-[#191c1e] text-sm">{job.title}</p>
+              </div>
+              <p className="text-[11px] text-[#76777d] mt-0.5 pl-4">{job.applicantCount} applicant{job.applicantCount !== 1 ? 's' : ''} · {job.status}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Shortlist Page ── */
 export default function ShortlistPage() {
   const dispatch = useAppDispatch();
@@ -472,6 +536,8 @@ export default function ShortlistPage() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<PopulatedResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showRecommendedOnly, setShowRecommendedOnly] = useState(true);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   useEffect(() => { dispatch(fetchJobs()); }, [dispatch]);
 
@@ -546,25 +612,62 @@ export default function ShortlistPage() {
         </div>
       </div>
 
-      {/* Job Selector */}
+      {/* Job Selector — searchable */}
       <div>
         <label className="label">Select Job</label>
-        <select value={selectedJob?._id || ''} onChange={(e) => {
-            const job = jobs.find((j) => j._id === e.target.value);
-            setSelectedJob(job || null);
-            dispatch(clearScreening());
-          }} className="input">
-          <option value="">Choose a job…</option>
-          {[...jobs].sort((a, b) => {
-            const o = { completed: 0, screening: 1, active: 2 };
+        <ShortlistJobSelect
+          jobs={[...jobs].sort((a, b) => {
+            const o: Record<string, number> = { completed: 0, screening: 1, active: 2 };
             return (o[a.status] ?? 3) - (o[b.status] ?? 3);
-          }).map((j) => (
-            <option key={j._id} value={j._id}>
-              {j.title} · {j.applicantCount} applicants · {j.status}
-            </option>
-          ))}
-        </select>
+          })}
+          selectedJob={selectedJob}
+          onChange={(job) => {
+            setSelectedJob(job);
+            dispatch(clearScreening());
+          }}
+        />
       </div>
+
+      {/* Shortlist filter + actions */}
+      {results.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowRecommendedOnly(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${showRecommendedOnly ? 'bg-[#0f172a] text-white' : 'bg-[#f2f4f6] text-[#45464d] hover:bg-[#e6e8ea]'}`}
+            >
+              Shortlisted ({(results as PopulatedResult[]).filter((r) => r.hiringSuggestion === 'Strong Yes' || r.hiringSuggestion === 'Yes').length})
+            </button>
+            <button
+              onClick={() => setShowRecommendedOnly(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${!showRecommendedOnly ? 'bg-[#0f172a] text-white' : 'bg-[#f2f4f6] text-[#45464d] hover:bg-[#e6e8ea]'}`}
+            >
+              All Screened ({results.length})
+            </button>
+          </div>
+          {selectedJob && (
+            <button
+              onClick={() => {
+                const recommended = (results as PopulatedResult[])
+                  .filter((r) => r.hiringSuggestion === 'Strong Yes' || r.hiringSuggestion === 'Yes')
+                  .map((r) => (r.talent as any)?.email)
+                  .filter(Boolean)
+                  .join(',');
+                if (!recommended) { alert('No email addresses found for recommended candidates.'); return; }
+                const subject = encodeURIComponent(`Interview Invitation – ${selectedJob.title}`);
+                const body = encodeURIComponent(
+                  `Dear Candidate,\n\nWe are delighted to inform you that after a thorough review of applications for the ${selectedJob.title} position, you have been shortlisted.\n\nWe would like to invite you for an interview. Please reply to this email to confirm your availability.\n\nBest regards,\nUmuravaHire AI Recruitment Team`
+                );
+                window.location.href = `mailto:?bcc=${recommended}&subject=${subject}&body=${body}`;
+              }}
+              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              Send Invites to Shortlisted
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Spec + Analytics panels */}
       {selectedJob && (
@@ -658,7 +761,7 @@ export default function ShortlistPage() {
       {!loading && results.length > 0 && (
         <div className="card p-0 overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[40px_1fr_100px_90px_40px] gap-2 px-4 py-2.5 border-b border-[#e6e8ea] bg-[#f7f9fb]">
+          <div className="grid grid-cols-[40px_1fr_100px_90px_80px] gap-2 px-4 py-2.5 border-b border-[#e6e8ea] bg-[#f7f9fb]">
             <p className="section-label text-[9px]">RANK</p>
             <p className="section-label text-[9px]">CANDIDATE</p>
             <p className="section-label text-[9px] text-center">SCORE</p>
@@ -667,14 +770,16 @@ export default function ShortlistPage() {
           </div>
 
           {/* Candidate rows */}
-          {(results as PopulatedResult[]).map((result, idx) => {
+          {(results as PopulatedResult[])
+            .filter((r) => !showRecommendedOnly || r.hiringSuggestion === 'Strong Yes' || r.hiringSuggestion === 'Yes')
+            .map((result, idx) => {
             const talent = (result.talent ?? {}) as Partial<TalentProfile>;
             const { label: fitLbl, cls: fitCls } = fitLabel(result.hiringSuggestion);
 
             return (
               <div
                 key={result._id}
-                className={`grid grid-cols-[40px_1fr_100px_90px_40px] gap-2 px-4 py-3.5 cursor-pointer hover:bg-[#f7f9fb] transition-colors items-center ${idx < results.length - 1 ? 'border-b border-[#f2f4f6]' : ''}`}
+                className={`grid grid-cols-[40px_1fr_100px_90px_80px] gap-2 px-4 py-3.5 cursor-pointer hover:bg-[#f7f9fb] transition-colors items-center ${idx < results.length - 1 ? 'border-b border-[#f2f4f6]' : ''}`}
                 onClick={() => setSelectedCandidate(result)}
               >
                 {/* Rank */}
@@ -711,12 +816,31 @@ export default function ShortlistPage() {
                 </div>
 
                 {/* Action */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setSelectedCandidate(result); }}
-                  className="p-1 rounded text-[#76777d] hover:text-[#191c1e] hover:bg-[#f2f4f6] transition-colors"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const email = (talent as any).email;
+                      if (!email) { alert('No email address for this candidate.'); return; }
+                      const subject = encodeURIComponent(`Interview Invitation – ${selectedJob?.title || 'Position'}`);
+                      const name = (talent as any).name || 'Candidate';
+                      const body = encodeURIComponent(
+                        `Dear ${name},\n\nWe are pleased to inform you that after reviewing your application for the ${selectedJob?.title || 'position'}, you have been shortlisted for an interview.\n\nPlease reply to this email to confirm your availability.\n\nBest regards,\nUmuravaHire AI Recruitment Team`
+                      );
+                      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                    }}
+                    title="Send email invitation"
+                    className="p-1 rounded text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedCandidate(result); }}
+                    className="p-1 rounded text-[#76777d] hover:text-[#191c1e] hover:bg-[#f2f4f6] transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             );
           })}

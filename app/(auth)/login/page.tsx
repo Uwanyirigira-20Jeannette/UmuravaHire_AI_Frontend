@@ -72,12 +72,7 @@ function LoginForm() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="label mb-0">Password</label>
-            <Link href="/forgot-password" className="text-xs text-blue-600 font-semibold hover:underline">
-              Forgot password?
-            </Link>
-          </div>
+          <label className="label">Password</label>
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
             <input
@@ -96,6 +91,11 @@ function LoginForm() {
             >
               {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
+          </div>
+          <div className="flex justify-end mt-1.5">
+            <Link href="/forgot-password" className="text-xs text-blue-600 font-semibold hover:underline">
+              Forgot password?
+            </Link>
           </div>
         </div>
 
