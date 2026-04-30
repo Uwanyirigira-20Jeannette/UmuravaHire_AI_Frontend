@@ -402,7 +402,7 @@ export default function JobsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 justify-end">
                       <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded-md text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -449,7 +449,7 @@ export default function JobsPage() {
                 {STATUS_LABEL[job.status]}
               </span>
               {/* Actions */}
-              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={(e) => openEdit(job, e)} className="p-1.5 rounded-md text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
@@ -475,7 +475,7 @@ export default function JobsPage() {
                   <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[job.status]}`} />
                   {STATUS_LABEL[job.status]}
                 </span>
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-0.5">
                   <button onClick={(e) => openEdit(job, e)}
                     className="p-1.5 rounded-lg text-[#76777d] hover:text-blue-600 hover:bg-blue-50 transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
@@ -604,19 +604,25 @@ export default function JobsPage() {
                 </div>
                 <div>
                   <label className="label">Education Required</label>
-                  <select className="input" value={form.educationRequired}
-                    onChange={(e) => setForm((f) => ({ ...f, educationRequired: e.target.value }))}>
-                    {EDUCATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select className="input appearance-none pr-10" value={form.educationRequired}
+                      onChange={(e) => setForm((f) => ({ ...f, educationRequired: e.target.value }))}>
+                      {EDUCATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="label">Shortlist Target</label>
-                <select className="input" value={form.shortlistTarget}
-                  onChange={(e) => setForm((f) => ({ ...f, shortlistTarget: Number(e.target.value) as 10 | 20 }))}>
-                  <option value={10}>Top 10</option>
-                  <option value={20}>Top 20</option>
-                </select>
+                <div className="relative">
+                  <select className="input appearance-none pr-10" value={form.shortlistTarget}
+                    onChange={(e) => setForm((f) => ({ ...f, shortlistTarget: Number(e.target.value) as 10 | 20 }))}>
+                    <option value={10}>Top 10</option>
+                    <option value={20}>Top 20</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="btn-secondary flex-1 justify-center">Cancel</button>

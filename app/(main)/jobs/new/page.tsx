@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
 import { createJob } from '@/store/slices/jobsSlice';
-import { ArrowLeft, Plus, X, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, X, ChevronRight, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 const EDUCATION_OPTIONS = ["Any", "High School", "Bachelor's", "Master's", "PhD", "Professional Certification"];
@@ -167,20 +167,26 @@ export default function NewJobPage() {
             </div>
             <div>
               <label className="label">Education Required</label>
-              <select className="input" value={form.educationRequired}
-                onChange={(e) => setForm((f) => ({ ...f, educationRequired: e.target.value }))}>
-                {EDUCATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              <div className="relative">
+                <select className="input appearance-none pr-10" value={form.educationRequired}
+                  onChange={(e) => setForm((f) => ({ ...f, educationRequired: e.target.value }))}>
+                  {EDUCATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
+              </div>
             </div>
           </div>
 
           <div>
             <label className="label">Shortlist Target</label>
-            <select className="input" value={form.shortlistTarget}
-              onChange={(e) => setForm((f) => ({ ...f, shortlistTarget: Number(e.target.value) as 10 | 20 }))}>
-              <option value={10}>Top 10</option>
-              <option value={20}>Top 20</option>
-            </select>
+            <div className="relative">
+              <select className="input appearance-none pr-10" value={form.shortlistTarget}
+                onChange={(e) => setForm((f) => ({ ...f, shortlistTarget: Number(e.target.value) as 10 | 20 }))}>
+                <option value={10}>Top 10</option>
+                <option value={20}>Top 20</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d]" />
+            </div>
           </div>
         </div>
 
