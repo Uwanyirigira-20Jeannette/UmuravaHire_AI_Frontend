@@ -58,7 +58,7 @@ function DonutChart({ pct, size = 100 }: { pct: number; size?: number }) {
 function CandidateProfile({
   result, job, onBack,
 }: { result: PopulatedResult; job: Job | null; onBack: () => void }) {
-  const talent = result.talent as TalentProfile;
+  const talent = (result.talent ?? {}) as Partial<TalentProfile>;
   const [activeTab, setActiveTab] = useState<'experience' | 'projects' | 'resume' | 'education'>('experience');
 
   const technicalFit = Math.round((result.scoreBreakdown.skills * 0.6 + result.scoreBreakdown.experience * 0.4));
@@ -668,7 +668,7 @@ export default function ShortlistPage() {
 
           {/* Candidate rows */}
           {(results as PopulatedResult[]).map((result, idx) => {
-            const talent = result.talent as TalentProfile;
+            const talent = (result.talent ?? {}) as Partial<TalentProfile>;
             const { label: fitLbl, cls: fitCls } = fitLabel(result.hiringSuggestion);
 
             return (
