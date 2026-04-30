@@ -7,8 +7,8 @@ import { fetchJobs, updateJob, deleteJob, selectJob } from '@/store/slices/jobsS
 import {
   Plus, X, Users, Calendar, Search,
   Pencil, Trash2, Upload, Cpu, Trophy, AlertTriangle, ArrowLeft,
-  MapPin, DollarSign, Shield, ChevronRight, LayoutGrid, List, AlignJustify,
-  ChevronDown, Briefcase, Clock,
+  MapPin, Shield, ChevronRight, LayoutGrid, List, AlignJustify,
+  ChevronDown, Briefcase, Clock, GraduationCap,
 } from 'lucide-react';
 import type { Job } from '@/types';
 import Link from 'next/link';
@@ -65,7 +65,6 @@ export default function JobsPage() {
   const [search,        setSearch]        = useState('');
   const [statusFilter,  setStatusFilter]  = useState<typeof ALL_STATUSES[number]>('all');
   const [selectedJob,   setSelectedJob]   = useState<Job | null>(null);
-  const [seeding,       setSeeding]       = useState(false);
   const [viewMode,      setViewMode]      = useState<'cards' | 'list' | 'compact'>('cards');
   const [viewOpen,      setViewOpen]      = useState(false);
 
@@ -74,13 +73,6 @@ export default function JobsPage() {
     const id = new URLSearchParams(window.location.search).get('id');
     if (id) { const job = jobs.find((j) => j._id === id); if (job) setSelectedJob(job); }
   }, [jobs]);
-
-  const handleSeedJobs = async () => {
-    setSeeding(true);
-    await fetch(`${API}/api/dev/seed`, { method: 'POST' });
-    await dispatch(fetchJobs());
-    setSeeding(false);
-  };
 
   useEffect(() => { dispatch(fetchJobs()); }, [dispatch]);
 
@@ -115,13 +107,17 @@ export default function JobsPage() {
     e.preventDefault();
     if (!editTarget || !form.title || !form.department || form.requiredSkills.length === 0) return;
     setSaving(true);
-    await dispatch(updateJob({ id: editTarget._id, data: {
+    const updatedData = {
       title: form.title, department: form.department, description: form.description,
       location: form.location || 'Remote',
       requiredSkills: form.requiredSkills, niceToHaveSkills: form.niceToHaveSkills,
       experienceYears: form.experienceYears, educationRequired: form.educationRequired,
       shortlistTarget: form.shortlistTarget,
-    }}));
+    };
+    await dispatch(updateJob({ id: editTarget._id, data: updatedData }));
+    if (selectedJob?._id === editTarget._id) {
+      setSelectedJob((prev) => prev ? { ...prev, ...updatedData } : null);
+    }
     setSaving(false); setShowForm(false); setForm(emptyForm());
   };
 
@@ -143,13 +139,14 @@ export default function JobsPage() {
   const counts = { active: 0, screening: 0, completed: 0 };
   jobs.forEach((j) => { counts[j.status] = (counts[j.status] || 0) + 1; });
 
-  /* ── Job Detail View ── */
-  if (selectedJob) {
-    const mustHave   = selectedJob.requiredSkills;
-    const niceToHave = selectedJob.niceToHaveSkills ?? [];
-    const healthPct  = selectedJob.applicantCount > 0 ? Math.min(99, Math.max(60, 78 + Math.round(Math.random() * 15))) : 0;
+  const mustHave   = selectedJob?.requiredSkills ?? [];
+  const niceToHave = selectedJob?.niceToHaveSkills ?? [];
+  const healthPct  = (selectedJob?.applicantCount ?? 0) > 0 ? Math.min(99, Math.max(60, 78 + Math.round(Math.random() * 15))) : 0;
 
-    return (
+  return (
+    <>
+      {selectedJob ? (
+      /* ── Job Detail View ── */
       <div className="max-w-2xl">
         <div className="flex items-center gap-1.5 text-[11px] text-[#45464d] font-semibold uppercase tracking-wide mb-5">
           <button onClick={() => setSelectedJob(null)} className="flex items-center gap-1 hover:text-[#0f172a] transition-colors">
@@ -178,7 +175,6 @@ export default function JobsPage() {
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-[#45464d] pt-3 border-t border-[#f2f4f6]">
             <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#76777d]" />{selectedJob.department} · {selectedJob.location || 'Remote'}</span>
-            <span className="flex items-center gap-1.5"><DollarSign className="w-4 h-4 text-[#76777d]" />Competitive</span>
           </div>
         </div>
 
@@ -194,7 +190,7 @@ export default function JobsPage() {
           <div className="grid grid-cols-2 gap-4">
             {[
               { icon: Users,    label: 'Experience', value: `${selectedJob.experienceYears}+ Years`, sub: 'Industry experience' },
-              { icon: Calendar, label: 'Education',  value: selectedJob.educationRequired || 'Any', sub: 'Minimum level' },
+              { icon: GraduationCap, label: 'Education', value: selectedJob.educationRequired || 'Any', sub: 'Education Level' },
               { icon: Trophy,   label: 'Shortlist',  value: `Top ${selectedJob.shortlistTarget}`, sub: 'Target candidates' },
               { icon: Shield,   label: 'Authorization', value: 'Open to all', sub: 'All candidates eligible', green: true },
             ].map(({ icon: Icon, label, value, sub, green }) => (
@@ -268,12 +264,9 @@ export default function JobsPage() {
           )}
         </div>
       </div>
-    );
-  }
-
-  /* ── Job List View ── */
-  return (
-    <div className="space-y-4">
+      ) : (
+      /* ── Job List View ── */
+      <div className="space-y-4">
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
@@ -308,12 +301,6 @@ export default function JobsPage() {
             )}
           </div>
 
-          <button onClick={handleSeedJobs} disabled={seeding} className="btn-secondary !py-2 !px-3 gap-1.5">
-            {seeding
-              ? <><div className="w-3.5 h-3.5 border-2 border-[#76777d] border-t-transparent rounded-full animate-spin" /><span className="text-xs">Loading…</span></>
-              : <><Plus className="w-3.5 h-3.5" /><span className="text-xs">Load Sample Jobs</span></>
-            }
-          </button>
           <button className="btn-primary" onClick={openCreate}>
             <Plus className="w-4 h-4" /> Post New Job
           </button>
@@ -526,6 +513,8 @@ export default function JobsPage() {
           ))}
         </div>
       )}
+      </div>
+      )}
 
       {/* ── Edit Modal ── */}
       {showForm && editTarget && (
@@ -661,6 +650,6 @@ export default function JobsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
