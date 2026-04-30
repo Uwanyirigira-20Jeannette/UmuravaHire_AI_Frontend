@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/slices/jobsSlice';
 import { runScreening, fetchShortlist, clearError } from '@/store/slices/screeningSlice';
@@ -10,7 +10,7 @@ import Link from 'next/link';
 import {
   AlertCircle, CheckCircle2, Loader2, Users, Brain, ArrowRight,
   ChevronDown, ChevronUp, Download, RefreshCw, Trophy, Star,
-  Zap, BookOpen, TrendingUp, MapPin, Briefcase, Info,
+  Zap, BookOpen, TrendingUp, MapPin, Briefcase, Info, Search,
 } from 'lucide-react';
 
 /* ─── Scoring criteria metadata ───────────────────────────────────── */
@@ -375,6 +375,107 @@ function ResultsPanel({
   );
 }
 
+/* ─── Searchable job select ───────────────────────────────────────── */
+function ScreeningJobSelect({
+  jobs,
+  selected,
+  onSelect,
+}: {
+  jobs: Job[];
+  selected: Job | null;
+  onSelect: (job: Job) => void;
+}) {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState('');
+  const containerRef          = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const filtered = jobs.filter((j) =>
+    `${j.title} ${j.department ?? ''}`.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const statusDot = (status: string) =>
+    status === 'completed' ? 'bg-blue-500' :
+    status === 'screening' ? 'bg-amber-400' : 'bg-emerald-500';
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setQuery(''); }}
+        className="w-full flex items-center gap-2 bg-[#f7f9fb] border border-[#e6e8ea] rounded-md px-3 py-2.5 text-sm text-[#191c1e] font-medium focus:outline-none focus:ring-2 focus:ring-[#0f172a] text-left"
+      >
+        {selected ? (
+          <>
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot(selected.status)}`} />
+            <span className="flex-1 truncate">
+              {selected.title}
+              <span className="text-[#76777d] font-normal ml-2">
+                — {selected.applicantCount} applicant{selected.applicantCount !== 1 ? 's' : ''} · {selected.status}
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className="flex-1 text-[#76777d]">Choose a job…</span>
+        )}
+        <ChevronDown className={`w-4 h-4 text-[#76777d] flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-[#e6e8ea] rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-[#f2f4f6]">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#76777d]" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search jobs…"
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-[#f7f9fb] border border-[#e6e8ea] rounded-md focus:outline-none focus:ring-1 focus:ring-[#0f172a]"
+              />
+            </div>
+          </div>
+          <ul className="max-h-52 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-[#76777d] text-center">No jobs found</li>
+            ) : filtered.map((j) => (
+              <li key={j._id}>
+                <button
+                  type="button"
+                  onClick={() => { onSelect(j); setOpen(false); setQuery(''); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[#f7f9fb] transition-colors ${selected?._id === j._id ? 'bg-[#f0f4ff]' : ''}`}
+                >
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot(j.status)}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#191c1e] truncate">{j.title}</p>
+                    <p className="text-[11px] text-[#76777d] truncate">
+                      {j.department && <span>{j.department} · </span>}
+                      {j.applicantCount} applicant{j.applicantCount !== 1 ? 's' : ''} · {j.status}
+                    </p>
+                  </div>
+                  {selected?._id === j._id && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main page ───────────────────────────────────────────────────── */
 export default function ScreeningPage() {
   const dispatch = useAppDispatch();
@@ -425,8 +526,7 @@ export default function ScreeningPage() {
     if (selectedJob) loadResults(selectedJob);
   }, [selectedJob, loadResults]);
 
-  const handleJobChange = (jobId: string) => {
-    const job = jobs.find((j) => j._id === jobId) ?? null;
+  const handleJobChange = (job: Job) => {
     setSelectedJob(job);
   };
 
@@ -477,21 +577,11 @@ export default function ScreeningPage() {
             {jobsLoading ? (
               <div className="h-10 bg-[#f2f4f6] rounded-md animate-pulse" />
             ) : (
-              <div className="relative">
-                <select
-                  value={selectedJob?._id ?? ''}
-                  onChange={(e) => handleJobChange(e.target.value)}
-                  className="w-full appearance-none bg-[#f7f9fb] border border-[#e6e8ea] rounded-md px-3 py-2.5 text-sm text-[#191c1e] font-medium focus:outline-none focus:ring-2 focus:ring-[#0f172a] pr-9"
-                >
-                  <option value="">Choose a job…</option>
-                  {jobs.map((j) => (
-                    <option key={j._id} value={j._id}>
-                      {j.title} — {j.applicantCount} applicant{j.applicantCount !== 1 ? 's' : ''} · {j.status}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#76777d] pointer-events-none" />
-              </div>
+              <ScreeningJobSelect
+                jobs={jobs}
+                selected={selectedJob}
+                onSelect={handleJobChange}
+              />
             )}
 
             {selectedJob && (
