@@ -14,7 +14,7 @@ import type { Job } from '@/types';
 import Link from 'next/link';
 
 const STATUS_LABEL: Record<string, string> = {
-  active:    'Shortlisting',
+  active:    'Active',
   screening: 'Screening',
   completed: 'Completed',
 };
