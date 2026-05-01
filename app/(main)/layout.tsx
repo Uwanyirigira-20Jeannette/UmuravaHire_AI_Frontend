@@ -10,7 +10,7 @@ import { getAuthUser, clearAuthUser, type AuthUser } from '@/lib/auth-client';
 const mobileNav = [
   { href: '/dashboard',  icon: LayoutDashboard, label: 'Home'   },
   { href: '/jobs',       icon: Briefcase,        label: 'Jobs'   },
-  { href: '/applicants', icon: Users,             label: 'Talent' },
+  { href: '/applicants', icon: Users,             label: 'Candidates' },
   { href: '/screening',  icon: Cpu,               label: 'Screen' },
   { href: '/shortlist',  icon: Trophy,            label: 'List'   },
 ];
@@ -29,7 +29,7 @@ function MobileBottomNav() {
             <Link key={href} href={href} className="flex-1">
               <div className={`flex flex-col items-center gap-0.5 py-2 px-1 transition-colors ${active ? 'text-[#0f172a]' : 'text-[#76777d]'}`}>
                 <Icon className={`w-5 h-5 ${active ? 'text-[#0f172a]' : 'text-[#76777d]'}`} />
-                <span className={`text-[9px] font-medium ${active ? 'text-[#0f172a]' : 'text-[#76777d]'}`}>{label}</span>
+                <span className={`text-[8px] font-medium ${active ? 'text-[#0f172a]' : 'text-[#76777d]'}`}>{label}</span>
                 {active && <div className="w-4 h-0.5 rounded-full bg-[#0f172a] mt-0.5" />}
               </div>
             </Link>
