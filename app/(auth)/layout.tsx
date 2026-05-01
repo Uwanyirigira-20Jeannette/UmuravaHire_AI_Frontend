@@ -3,9 +3,43 @@ import { Sparkles } from 'lucide-react';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden">
 
-      {/* ── Left dark panel ── */}
+      {/* ── Mobile top blue banner (phones only) ── */}
+      <div className="lg:hidden bg-[#0f172a] px-6 pt-10 pb-8 relative overflow-hidden flex-shrink-0">
+        {/* Background accent blobs */}
+        <div className="absolute top-[-60px] left-[-60px] w-[220px] h-[220px] rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-40px] right-[-40px] w-[180px] h-[180px] rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
+          {/* Logo */}
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="font-extrabold text-white text-[16px] leading-none">
+                UmuravaHire<span className="text-blue-400">AI</span>
+              </p>
+              <p className="text-[9px] font-bold tracking-widest text-blue-400/80 uppercase mt-0.5">
+                Recruitment Intelligence
+              </p>
+            </div>
+          </Link>
+
+          <h2 className="text-[1.55rem] font-black text-white leading-tight">
+            Hire smarter,{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
+              not harder.
+            </span>
+          </h2>
+          <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+            AI-powered candidate screening &amp; shortlisting in seconds.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Desktop left dark panel ── */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[52%] h-full bg-[#0f172a] flex-col relative overflow-hidden">
 
         {/* Background accent blobs */}
@@ -52,7 +86,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex-1 h-full bg-white overflow-y-auto flex items-center justify-center p-8">
+      <div className="flex-1 bg-white overflow-y-auto flex items-center justify-center p-6 lg:p-8">
         {children}
       </div>
 
